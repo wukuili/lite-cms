@@ -4,19 +4,19 @@
     <h1>{{ .category.Name }}</h1>
 </div>
 
-<div class="article-list">
-    {{ range .articles }}
-    <article class="article-card">
-        <h2><a href="/posts/{{ .Slug }}">{{ .Title }}</a></h2>
-        <div class="article-meta">
-            {{ if .PublishedAt }}<span class="date">{{ .PublishedAt.Format "2006-01-02" }}</span>{{ end }}
-        </div>
-        <p class="article-summary">{{ .Summary }}</p>
-    </article>
-    {{ else }}
-    <div class="empty-state">
-        <p style="font-size: 1.2rem; color: #fff;">该分类下暂无文章</p>
+<div class="article-grid">
+    {{ if not .articles }}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--text-muted);">
+        该分类下暂无文章。
     </div>
+    {{ end }}
+    {{ range .articles }}
+        <a href="/posts/{{ .Slug }}" class="article-card">
+            <div class="meta">{{ if .PublishedAt }}{{ .PublishedAt.Format "2006-01-02" }}{{ else }}未发布{{ end }}</div>
+            <h3>{{ .Title }}</h3>
+            <p>{{ .Summary }}</p>
+            <div class="read-more-link">阅读全文 <span>&rarr;</span></div>
+        </a>
     {{ end }}
 </div>
 

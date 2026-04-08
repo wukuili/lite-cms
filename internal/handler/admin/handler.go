@@ -159,7 +159,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 	// 设置Cookie，用于浏览器静默认证（如页面导航）
 	isSecure := c.Request.TLS != nil || c.GetHeader("X-Forwarded-Proto") == "https"
-	c.SetCookie("token", token, 3600*24, "/admin", "", isSecure, true)
+	c.SetCookie("token", token, 3600*24, "/", "", isSecure, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": token,
@@ -174,7 +174,7 @@ func (h *Handler) Login(c *gin.Context) {
 // Logout 退出登录
 func (h *Handler) Logout(c *gin.Context) {
 	// 清除Cookie
-	c.SetCookie("token", "", -1, "/admin", "", false, true)
+	c.SetCookie("token", "", -1, "/", "", false, true)
 	c.JSON(http.StatusOK, gin.H{"message": "退出成功"})
 }
 
@@ -194,9 +194,13 @@ func (h *Handler) Profile(c *gin.Context) {
 // ListArticles 文章列表
 func (h *Handler) ListArticles(c *gin.Context) {
 	cursor := c.Query("cursor")
+	keyword := c.Query("keyword")
+	if keyword == "" {
+		keyword = c.Query("q")
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	result, err := h.articleSvc.ListAll(c.Request.Context(), cursor, limit)
+	result, err := h.articleSvc.ListAll(c.Request.Context(), keyword, cursor, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

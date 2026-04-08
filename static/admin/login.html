@@ -102,8 +102,23 @@
         }
 
         // Check if already logged in
-        if (localStorage.getItem('token')) {
-            window.location.href = '/admin/';
+        const savedToken = localStorage.getItem('token');
+        if (savedToken) {
+            console.log('检测到本地 Token，正在验证身份...');
+            fetch('/api/admin/auth/profile', { 
+                headers: { 'Authorization': 'Bearer ' + savedToken } 
+            }).then(res => {
+                if (res.ok) {
+                    console.log('身份验证成功，跳转至后台...');
+                    window.location.href = '/admin/';
+                } else {
+                    console.warn('Token 已失效，请重新登录');
+                    localStorage.removeItem('token');
+                }
+            }).catch(err => {
+                console.error('身份验证请求失败', err);
+                localStorage.removeItem('token');
+            });
         }
     </script>
 </body>

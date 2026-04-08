@@ -15,20 +15,20 @@
 {{ if .keyword }}
 <div style="margin-bottom: 24px; color: var(--text-muted); text-align: center;">为您找到 <strong>"{{ .keyword }}"</strong> 的相关结果：</div>
 
-<div class="article-list">
-    {{ range .articles }}
-    <article class="article-card">
-        <h2><a href="/posts/{{ .Slug }}">{{ .Title }}</a></h2>
-        <div class="article-meta">
-            {{ if .PublishedAt }}<span class="date">{{ .PublishedAt.Format "2006-01-02" }}</span>{{ end }}
-        </div>
-        <p class="article-summary">{{ .Summary }}</p>
-    </article>
-    {{ else }}
-    <div class="empty-state">
-        <p style="font-size: 1.2rem; color: #fff;">未找到相关文章</p>
+<div class="article-grid">
+    {{ if not .articles }}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--text-muted);">
+        <p style="font-size: 1.2rem; color: var(--text-main); font-weight: 700; margin-bottom: 8px;">未找到相关文章</p>
         <p>尝试更换搜索关键词，或浏览其他分类</p>
     </div>
+    {{ end }}
+    {{ range .articles }}
+        <a href="/posts/{{ .Slug }}" class="article-card">
+            <div class="meta">{{ if .PublishedAt }}{{ .PublishedAt.Format "2006-01-02" }}{{ else }}未发布{{ end }}</div>
+            <h3>{{ .Title }}</h3>
+            <p>{{ .Summary }}</p>
+            <div class="read-more-link">阅读全文 <span>&rarr;</span></div>
+        </a>
     {{ end }}
 </div>
 

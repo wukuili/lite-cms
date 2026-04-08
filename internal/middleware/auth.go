@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 	"golang.org/x/time/rate"
 )
 
@@ -26,6 +27,9 @@ var (
 )
 
 func init() {
+	// 尝试加载 .env 文件，防止 init 先于 main 执行时环境变量未就绪
+	_ = godotenv.Load()
+
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
 		mode := os.Getenv("SERVER_MODE")
@@ -94,14 +98,32 @@ type Claims struct {
 // AuthRequired 认证中间件
 func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		path := c.Request.URL.Path
+		isAPI := strings.HasPrefix(path, "/api/")
+
 		tokenString := c.GetHeader("Authorization")
 		if tokenString == "" {
 			tokenString, _ = c.Cookie("token")
 		}
 
-		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		handleAuthError := func(err string) {
+			// 如果是 API 请求，返回 JSON
+			if isAPI {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": err})
+			} else {
+				// 调试日志：输出为什么验证失败，便于追踪死循环原因
+				log.Printf("AuthRequired 验证失败: %s, 路径: %s, 来源IP: %s", err, path, c.ClientIP())
+				
+				// 如果是页面请求，清理可能存在的无效 cookie 并重定向到登录页
+				// 注意：路径必须与设置时一致，统一改为 "/"
+				c.SetCookie("token", "", -1, "/", "", false, true)
+				c.Redirect(http.StatusFound, "/admin/login")
+			}
 			c.Abort()
+		}
+
+		if tokenString == "" {
+			handleAuthError("未登录")
 			return
 		}
 
@@ -115,8 +137,7 @@ func AuthRequired() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的token"})
-			c.Abort()
+			handleAuthError("无效的token")
 			return
 		}
 
@@ -125,8 +146,9 @@ func AuthRequired() gin.HandlerFunc {
 			c.Set("username", claims.Username)
 			c.Set("role", claims.Role)
 		} else {
-			// 如果 *Claims 转型失败，记录原因
 			log.Printf("Token claims 转型失败: type=%T, claims=%+v", token.Claims, token.Claims)
+			handleAuthError("身份验证失败")
+			return
 		}
 
 		c.Next()

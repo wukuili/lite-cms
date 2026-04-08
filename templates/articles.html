@@ -4,20 +4,19 @@
     <p>探索我们的所有内容与故事</p>
 </div>
 
-<div class="article-list">
-    {{ range .articles }}
-    <article class="article-card">
-        <h2><a href="/posts/{{ .Slug }}">{{ .Title }}</a></h2>
-        <div class="article-meta">
-            {{ if .PublishedAt }}<span class="date">{{ .PublishedAt.Format "2006-01-02" }}</span>{{ end }}
-            {{ if .CategoryName }}<span class="dot">·</span> <a href="/category/{{ .CategorySlug }}">{{ .CategoryName }}</a>{{ end }}
-        </div>
-        <p class="article-summary">{{ .Summary }}</p>
-    </article>
-    {{ else }}
-    <div class="empty-state">
-        <p style="font-size: 1.2rem; color: #fff;">暂无文章</p>
+<div class="article-grid">
+    {{ if not .articles }}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--text-muted);">
+        暂无文章。
     </div>
+    {{ end }}
+    {{ range .articles }}
+        <a href="/posts/{{ .Slug }}" class="article-card">
+            <div class="meta">{{ if .CategoryName }}{{ .CategoryName }}{{ else }}未分类{{ end }} &bull; {{ if .PublishedAt }}{{ .PublishedAt.Format "2006-01-02" }}{{ end }}</div>
+            <h3>{{ .Title }}</h3>
+            <p>{{ .Summary }}</p>
+            <div class="read-more-link">阅读全文 <span>&rarr;</span></div>
+        </a>
     {{ end }}
 </div>
 

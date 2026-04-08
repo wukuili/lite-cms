@@ -1,8 +1,8 @@
 {{ define "content" }}
 
     <div class="hero">
-        <h2>LiteCMS</h2>
-        <p>重新定义内容管理系统 (CMS) 体验</p>
+        <h2>{{ index .settings "site_name" | default "LiteCMS" }}</h2>
+        <p>{{ index .settings "site_subtitle" | default (index .settings "site_description" | default "重新定义内容管理系统 (CMS) 体验") }}</p>
     </div>
 
     <div class="article-grid">
@@ -16,7 +16,7 @@
                 <div class="meta">{{ if .CategoryName }}{{ .CategoryName }}{{ else }}未分类{{ end }} &bull; {{ .CreatedAt.Format "2006-01-02" }}</div>
                 <h3>{{ .Title }}</h3>
                 <p>{{ .Summary }}</p>
-                <div style="margin-top: auto; padding-top: 16px; font-size: 0.875rem; color: var(--primary); font-weight: 600;">阅读全文 &rarr;</div>
+                <div class="read-more-link">阅读全文 <span>&rarr;</span></div>
             </a>
         {{ end }}
     </div>

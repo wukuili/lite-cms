@@ -97,7 +97,7 @@ lite-cms/
 
 ```bash
 # 压缩体积且不包含调试信息编译
-go build -ldflags="-s -w" -o server ./cmd/server
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o server ./cmd/server
 
 # 可选使用 UPX 进一步二次压缩 
 # upx --best --lzma server

@@ -45,6 +45,14 @@
                 </button>
             </header>
 
+            <div class="search-bar" style="margin-bottom: 24px; display: flex; gap: 12px; background: #fff; padding: 16px; border-radius: 12px; border: 1px solid #f1f5f9; box-shadow: var(--shadow-sm);">
+                <div style="flex: 1; position: relative;">
+                    <input type="text" id="search-input" placeholder="按文章标题或内容搜索..." style="width: 100%; padding: 10px 16px; border-radius: 8px; border: 1px solid #e2e8f0; outline: none; transition: border-color 0.2s;" onkeypress="if(event.key==='Enter') searchArticles()">
+                </div>
+                <button class="btn" style="background: var(--primary); color: white; padding: 0 24px;" onclick="searchArticles()">搜索</button>
+                <button class="btn" style="background: #f1f5f9; color: #475569;" onclick="clearSearch()">重置</button>
+            </div>
+
             <div class="card" style="padding: 0; overflow: hidden;">
                 <div class="table-container">
                     <table>
@@ -139,9 +147,12 @@
             'Authorization': 'Bearer ' + token
         };
 
-        async function loadArticles() {
+        async function loadArticles(keyword = '') {
             try {
-                const res = await fetch('/api/admin/articles', { headers });
+                let url = '/api/admin/articles?limit=100';
+                if (keyword) url += '&q=' + encodeURIComponent(keyword);
+                
+                const res = await fetch(url, { headers });
                 if (res.status === 401) return window.location.href = '/admin/login';
                 const data = await res.json();
                 const list = document.getElementById('article-list');
@@ -170,6 +181,16 @@
             } catch (e) {
                 console.error(e);
             }
+        }
+
+        function searchArticles() {
+            const keyword = document.getElementById('search-input').value.trim();
+            loadArticles(keyword);
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            loadArticles();
         }
 
         async function loadCategories() {

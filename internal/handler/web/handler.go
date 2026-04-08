@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -386,11 +387,21 @@ func (h *Handler) getSettings(c *gin.Context) map[string]string {
 	cacheKey := "web:settings"
 	if cached, ok := cache.Get(cacheKey); ok {
 		if result, ok := cached.(map[string]string); ok {
+			log.Printf("DEBUG: 缓存命中, site_name=%s", result["site_name"])
 			return result
 		}
 	}
 
-	settings, _ := h.settingSvc.GetMap(c.Request.Context())
+	settings, err := h.settingSvc.GetMap(c.Request.Context())
+	if err != nil {
+		log.Printf("DEBUG: 从数据库加载设置失败: %v", err)
+	} else {
+		log.Printf("DEBUG: 从数据库加载设置成功, site_name=%s, 键数量=%d", settings["site_name"], len(settings))
+		for k, v := range settings {
+			log.Printf("  - %s: %s", k, v)
+		}
+	}
+	
 	cache.SetWithTTL(cacheKey, settings, 1, 5*time.Minute)
 	return settings
 }

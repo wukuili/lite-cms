@@ -71,13 +71,18 @@ func (r *ArticleRepository) ListPublished(ctx context.Context, cursor string, li
 }
 
 // ListAll 获取所有文章列表（后台管理用，包含草稿）
-func (r *ArticleRepository) ListAll(ctx context.Context, cursor string, limit int) (*CursorResult, error) {
+func (r *ArticleRepository) ListAll(ctx context.Context, keyword string, cursor string, limit int) (*CursorResult, error) {
 	var articles []model.Article
 	query := r.db.WithContext(ctx).
 		Preload("Tags").
 		Where("deleted_at IS NULL").
 		Order("id DESC").
 		Limit(limit + 1)
+
+	if keyword != "" {
+		searchKey := "%" + keyword + "%"
+		query = query.Where("title ILIKE ? OR content ILIKE ?", searchKey, searchKey)
+	}
 
 	if cursor != "" {
 		decoded, err := r.decodeCursor(cursor)

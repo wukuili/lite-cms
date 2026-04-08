@@ -93,8 +93,8 @@ func (s *ArticleService) List(ctx context.Context, cursor string, limit int) (*L
 }
 
 // ListAll 获取所有文章列表（后台管理用，包含草稿）
-func (s *ArticleService) ListAll(ctx context.Context, cursor string, limit int) (*ListOutput, error) {
-	result, err := s.repo.ListAll(ctx, cursor, limit)
+func (s *ArticleService) ListAll(ctx context.Context, keyword string, cursor string, limit int) (*ListOutput, error) {
+	result, err := s.repo.ListAll(ctx, keyword, cursor, limit)
 	if err != nil {
 		return nil, err
 	}

@@ -24,6 +24,7 @@ type ServerConfig struct {
 	Mode      string // debug, release, test
 	RateLimit float64
 	RateBurst int
+	JWTSecret string
 }
 
 // DatabaseConfig 数据库配置
@@ -75,6 +76,7 @@ func Load() *Config {
 			Mode: getEnv("SERVER_MODE", "release"),
 			RateLimit: float64(getEnvInt("SERVER_RATE_LIMIT", 100)),
 			RateBurst: getEnvInt("SERVER_RATE_BURST", 200),
+			JWTSecret: getEnv("JWT_SECRET", ""),
 		},
 		Database: DatabaseConfig{
 			Host:            getEnv("DB_HOST", "localhost"),

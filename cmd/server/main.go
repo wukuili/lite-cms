@@ -183,7 +183,7 @@ func createRenderer() multitemplate.Renderer {
 
 	funcMap := template.FuncMap{
 		"safe": func(x string) template.HTML { return template.HTML(x) },
-		"default": func(val, defaultVal string) string {
+		"default": func(defaultVal, val string) string {
 			if val == "" {
 				return defaultVal
 			}
