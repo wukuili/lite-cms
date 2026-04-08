@@ -40,7 +40,7 @@ func init() {
 	go cleanupVisitors()
 }
 
-func getLimiter(ip string) *rate.Limiter {
+func getLimiter(ip string, r float64, b int) *rate.Limiter {
 	mu.Lock()
 	defer mu.Unlock()
 	
@@ -59,8 +59,8 @@ func getLimiter(ip string) *rate.Limiter {
 				return rate.NewLimiter(0, 0) // 拒绝
 			}
 		}
-		// 允许每秒10个请求，突发容量为20
-		v = &visitor{limiter: rate.NewLimiter(10, 20)}
+		// 使用传入参数配置限流器
+		v = &visitor{limiter: rate.NewLimiter(rate.Limit(r), b)}
 		visitors[ip] = v
 	}
 	v.lastSeen = time.Now()
@@ -174,10 +174,10 @@ func Recovery() gin.HandlerFunc {
 	return gin.Recovery()
 }
 
-// RateLimit 简单限流中间件
-func RateLimit() gin.HandlerFunc {
+// RateLimit 限流中间件
+func RateLimit(limit float64, burst int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		limiter := getLimiter(c.ClientIP())
+		limiter := getLimiter(c.ClientIP(), limit, burst)
 		if !limiter.Allow() {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "请求太频繁，请稍后再试"})
 			c.Abort()

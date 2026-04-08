@@ -86,7 +86,7 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Logger())
 	r.Use(middleware.Recovery())
-	r.Use(middleware.RateLimit())
+	r.Use(middleware.RateLimit(cfg.Server.RateLimit, cfg.Server.RateBurst))
 
 	// 静态文件
 	r.Static("/static", "./static")

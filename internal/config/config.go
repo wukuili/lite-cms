@@ -21,7 +21,9 @@ type Config struct {
 type ServerConfig struct {
 	Host string
 	Port int
-	Mode string // debug, release, test
+	Mode      string // debug, release, test
+	RateLimit float64
+	RateBurst int
 }
 
 // DatabaseConfig 数据库配置
@@ -71,6 +73,8 @@ func Load() *Config {
 			Host: getEnv("SERVER_HOST", "0.0.0.0"),
 			Port: getEnvInt("SERVER_PORT", 8080),
 			Mode: getEnv("SERVER_MODE", "release"),
+			RateLimit: float64(getEnvInt("SERVER_RATE_LIMIT", 100)),
+			RateBurst: getEnvInt("SERVER_RATE_BURST", 200),
 		},
 		Database: DatabaseConfig{
 			Host:            getEnv("DB_HOST", "localhost"),
