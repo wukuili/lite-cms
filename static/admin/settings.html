@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - LiteCMS Admin</title>
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>LiteCMS Admin</h2>
+            </div>
+            <nav>
+                <a href="/admin/">仪表盘</a>
+                <a href="/admin/articles">文章管理</a>
+                <a href="/admin/categories">分类管理</a>
+                <a href="/admin/tags">标签管理</a>
+                <a href="/admin/media">媒体库</a>
+                <a href="/admin/menus">菜单管理</a>
+                <a href="/admin/users">用户管理</a>
+                <a href="/admin/settings" class="active">系统设置</a>
+                <a href="#" onclick="logout()" style="margin-top: auto;">退出登录</a>
+            </nav>
+        </aside>
+        
+        <main class="main">
+            <header class="header">
+                <div>
+                    <h2>系统设置</h2>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">配置全站全局信息、SEO及系统参数</p>
+                </div>
+                <button class="btn btn-primary" onclick="saveAllSettings()">保存更改</button>
+            </header>
+
+            <div class="grid-2">
+                <!-- Site Identity -->
+                <div class="card">
+                    <h3 style="margin-bottom: 24px; font-weight: 700;">站点身份</h3>
+                    <div class="form-group">
+                        <label>站点名称</label>
+                        <input type="text" id="site_name" data-key="site_name" placeholder="例如：LiteCMS 官方博客">
+                    </div>
+                    <div class="form-group">
+                        <label>站点副标题</label>
+                        <input type="text" id="site_subtitle" data-key="site_subtitle" placeholder="一句简洁的口号">
+                    </div>
+                    <div class="form-group">
+                        <label>ICP 备案号</label>
+                        <input type="text" id="site_icp" data-key="site_icp" placeholder="京ICP备xxxxxxxx号">
+                    </div>
+                    <div class="form-group">
+                        <label>版权信息</label>
+                        <input type="text" id="site_copyright" data-key="site_copyright" placeholder="&copy; 2024 LiteCMS">
+                    </div>
+                </div>
+
+                <!-- SEO Settings -->
+                <div class="card">
+                    <h3 style="margin-bottom: 24px; font-weight: 700;">SEO 优化</h3>
+                    <div class="form-group">
+                        <label>SEO 关键词 (用英文逗号分隔)</label>
+                        <input type="text" id="site_keywords" data-key="site_keywords" placeholder="CMS, Go, Gin, 高性能">
+                    </div>
+                    <div class="form-group">
+                        <label>SEO 描述</label>
+                        <textarea id="site_description" data-key="site_description" rows="5" placeholder="站点详细介绍，有助于搜索引擎抓取"></textarea>
+                    </div>
+                </div>
+
+                <!-- AI Settings -->
+                <div class="card">
+                    <h3 style="margin-bottom: 24px; font-weight: 700;">AI 智能增强</h3>
+                    <p style="font-size: 0.8125rem; color: #64748b; margin-bottom: 20px;">配置 AI 生成功能的默认模型（部分配置目前通过 .env 修改）</p>
+                    <div class="form-group">
+                        <label>默认生成字数</label>
+                        <input type="number" id="ai_summary_len" data-key="ai_summary_len" value="200">
+                    </div>
+                    <div class="form-group">
+                        <label>预置 Prompt 模板 (摘要)</label>
+                        <textarea id="ai_prompt_template" data-key="ai_prompt_template" rows="4" placeholder="可选自定义 LLM Prompt"></textarea>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/admin/login';
+        const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/admin/settings', { headers });
+                const settings = await res.json();
+                
+                // 将数组转为 Map 方便填值
+                const settingMap = {};
+                settings.forEach(s => settingMap[s.key] = s.value);
+
+                document.querySelectorAll('[data-key]').forEach(el => {
+                    if (settingMap[el.dataset.key] !== undefined) {
+                        el.value = settingMap[el.dataset.key];
+                    }
+                });
+            } catch (e) {
+                console.error('加载设置失败', e);
+            }
+        }
+
+        async function saveAllSettings() {
+            const data = {};
+            document.querySelectorAll('[data-key]').forEach(el => {
+                data[el.dataset.key] = el.value;
+            });
+
+            try {
+                const res = await fetch('/api/admin/settings', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    alert('设置已保存');
+                } else {
+                    const err = await res.json();
+                    alert('保存失败: ' + err.error);
+                }
+            } catch (e) {
+                alert('网络连接错误');
+            }
+        }
+
+        function logout() { localStorage.removeItem('token'); window.location.href = '/admin/login'; }
+        loadSettings();
+    </script>
+</body>
+</html>

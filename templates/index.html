@@ -1,0 +1,29 @@
+{{ define "content" }}
+
+    <div class="hero">
+        <h2>LiteCMS</h2>
+        <p>重新定义内容管理系统 (CMS) 体验</p>
+    </div>
+
+    <div class="article-grid">
+        {{ if not .articles }}
+        <div style="grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--text-muted);">
+            目前还没有发布文章。
+        </div>
+        {{ end }}
+        {{ range .articles }}
+            <a href="/posts/{{ .Slug }}" class="article-card">
+                <div class="meta">{{ if .CategoryName }}{{ .CategoryName }}{{ else }}未分类{{ end }} &bull; {{ .CreatedAt.Format "2006-01-02" }}</div>
+                <h3>{{ .Title }}</h3>
+                <p>{{ .Summary }}</p>
+                <div style="margin-top: auto; padding-top: 16px; font-size: 0.875rem; color: var(--primary); font-weight: 600;">阅读全文 &rarr;</div>
+            </a>
+        {{ end }}
+    </div>
+
+{{ if .has_more }}
+<div class="pagination">
+    <a href="/posts?cursor={{ .next }}">浏览更多文章</a>
+</div>
+{{ end }}
+{{ end }}

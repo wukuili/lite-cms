@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ if .article }}{{ .article.Title }} - {{ end }}{{ index .settings "site_name" | default "LiteCMS" }}</title>
+    <meta name="description" content="{{ if .article }}{{ .article.Summary }}{{ else }}{{ index .settings "site_description" | default "轻量级，高性能及高大上的CMS系统" }}{{ end }}">
+    <meta name="keywords" content="{{ index .settings "site_keywords" | default "CMS,Go,LiteCMS" }}">
+    <link rel="preconnect" href="https://fonts.loli.net" crossorigin>
+    <link href="https://fonts.loli.net/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><a href="/">{{ index .settings "site_name" | default "LiteCMS" }}</a></h1>
+            <nav>
+                {{ if .menus.header }}
+                    {{ range .menus.header }}
+                        <a href="{{ .URL }}" target="{{ .Target }}">{{ if .Icon }}<i class="{{ .Icon }}"></i> {{ end }}{{ .Name }}</a>
+                    {{ end }}
+                {{ else }}
+                    <a href="/">首页</a>
+                    <a href="/posts">全部文章</a>
+                    <a href="/search">搜索</a>
+                {{ end }}
+            </nav>
+        </div>
+    </header>
+    
+    <main class="container">
+        {{ template "content" . }}
+    </main>
+
+    <footer>
+        <div class="container">
+            {{ if .menus.footer }}
+            <nav style="display: flex; justify-content: center; gap: 20px; margin-bottom: 20px;">
+                {{ range .menus.footer }}
+                    <a href="{{ .URL }}" target="{{ .Target }}" style="color: var(--text-muted); font-size: 0.95rem;">{{ if .Icon }}<i class="{{ .Icon }}"></i> {{ end }}{{ .Name }}</a>
+                {{ end }}
+            </nav>
+            {{ end }}
+            <p>{{ index .settings "site_copyright" | default "&copy; 2024 LiteCMS. 重新定义内容管理系统" | safe }}</p>
+        </div>
+    </footer>
+</body>
+</html>

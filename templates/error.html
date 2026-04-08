@@ -1,0 +1,7 @@
+{{ define "content" }}
+<div class="empty-state" style="margin-top: 60px;">
+    <h1 style="font-size: 3rem; margin-bottom: 20px; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">出错了</h1>
+    <p style="font-size: 1.2rem; color: var(--text-muted); margin-bottom: 40px;">{{ .error }}</p>
+    <a href="/" style="display: inline-block; padding: 12px 32px; background: var(--accent-gradient); color: #fff; text-decoration: none; border-radius: 40px; font-weight: 500; transition: var(--transition);">返回首页</a>
+</div>
+{{ end }}

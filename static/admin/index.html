@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台仪表盘 - LiteCMS Admin</title>
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+        }
+        .bg-indigo { background: #eef2ff; color: #6366f1; }
+        .bg-emerald { background: #ecfdf5; color: #10b981; }
+        .bg-amber { background: #fffbeb; color: #f59e0b; }
+        .bg-rose { background: #fff1f2; color: #f43f5e; }
+        
+        .chart-container {
+            margin-top: 32px;
+            padding: 24px;
+            background: #fff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: var(--card-shadow);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>LiteCMS Admin</h2>
+            </div>
+            <nav>
+                <a href="/admin/" class="active">仪表盘</a>
+                <a href="/admin/articles">文章管理</a>
+                <a href="/admin/categories">分类管理</a>
+                <a href="/admin/tags">标签管理</a>
+                <a href="/admin/media">媒体库</a>
+                <a href="/admin/menus">菜单管理</a>
+                <a href="/admin/users">用户管理</a>
+                <a href="/admin/settings">系统设置</a>
+                <a href="#" onclick="logout()" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);">退出登录</a>
+            </nav>
+        </aside>
+        
+        <main class="main">
+            <header class="header">
+                <div>
+                    <h2>仪表盘</h2>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;" id="welcome-msg">欢迎回来，载入中...</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <a href="/" target="_blank" class="btn" style="background: #fff; border: 1px solid #e2e8f0; color: var(--text-main);">访问站点</a>
+                    <a href="/admin/articles" class="btn btn-primary">撰写新文章</a>
+                </div>
+            </header>
+
+            <div class="stats-grid">
+                <div class="card stat-card">
+                    <div class="stat-icon bg-indigo">📝</div>
+                    <div class="label">文章总数</div>
+                    <div class="value" id="stat-articles">-</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-icon bg-emerald">👁️</div>
+                    <div class="label">总浏览量</div>
+                    <div class="value" id="stat-views">-</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-icon bg-amber">📂</div>
+                    <div class="label">分类总数</div>
+                    <div class="value" id="stat-categories">-</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-icon bg-rose">🏷️</div>
+                    <div class="label">标签总数</div>
+                    <div class="value" id="stat-tags">-</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="chart-container" style="grid-column: span 2;">
+                    <h3 style="margin-bottom: 20px; font-weight: 700;">内容分布概览</h3>
+                    <canvas id="trendsChart" height="100"></canvas>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 32px; padding: 24px;">
+                <h3 style="margin-bottom: 16px; font-weight: 700;">系统快捷操作</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
+                    <a href="/admin/media" class="btn" style="background: #f8fafc; border: 1px solid #e2e8f0; color: var(--text-main); justify-content: flex-start; padding: 16px;">🖼️ 媒体库管理</a>
+                    <a href="/admin/menus" class="btn" style="background: #f8fafc; border: 1px solid #e2e8f0; color: var(--text-main); justify-content: flex-start; padding: 16px;">🔗 菜单设置</a>
+                    <a href="/admin/users" class="btn" style="background: #f8fafc; border: 1px solid #e2e8f0; color: var(--text-main); justify-content: flex-start; padding: 16px;">👥 用户管理</a>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/admin/login';
+
+        const headers = { 'Authorization': 'Bearer ' + token };
+
+        // Load Profile
+        fetch('/api/admin/auth/profile', { headers })
+            .then(res => res.json())
+            .then(user => {
+                document.getElementById('welcome-msg').textContent = `欢迎回来，${user.username}。今天又是创作的好日子！`;
+            })
+            .catch(() => window.location.href = '/admin/login');
+
+        // Load Stats
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/dashboard/stats', { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('stat-articles').textContent = data.articles;
+                    document.getElementById('stat-views').textContent = data.views;
+                    document.getElementById('stat-categories').textContent = data.categories;
+                    document.getElementById('stat-tags').textContent = data.tags;
+                    
+                    initChart(data);
+                }
+            } catch (e) {
+                console.error('Failed to load stats', e);
+            }
+        }
+
+        function initChart(stats) {
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['文章', '分类', '标签'],
+                    datasets: [{
+                        data: [stats.articles, stats.categories, stats.tags],
+                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b'],
+                        borderWidth: 0,
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 20, font: { size: 14, weight: '500' } }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/admin/login';
+        }
+
+        loadStats();
+    </script>
+</body>
+</html>

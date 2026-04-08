@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章管理 - LiteCMS Admin</title>
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+    <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+    <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+    <style>
+        .CodeMirror { border-radius: 0 0 8px 8px; border-color: #cbd5e1; }
+        .editor-toolbar { border-radius: 8px 8px 0 0; border-color: #cbd5e1; background: #f8fafc; }
+        .status-badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .status-published { background: #ecfdf5; color: #10b981; }
+        .status-draft { background: #f1f5f9; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>LiteCMS Admin</h2>
+            </div>
+            <nav>
+                <a href="/admin/">仪表盘</a>
+                <a href="/admin/articles" class="active">文章管理</a>
+                <a href="/admin/categories">分类管理</a>
+                <a href="/admin/tags">标签管理</a>
+                <a href="/admin/media">媒体库</a>
+                <a href="/admin/menus">菜单管理</a>
+                <a href="/admin/users">用户管理</a>
+                <a href="/admin/settings">系统设置</a>
+                <a href="#" onclick="logout()" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);">退出登录</a>
+            </nav>
+        </aside>
+        
+        <main class="main">
+            <header class="header">
+                <div>
+                    <h2>文章管理</h2>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">管理您的站点内容与博文</p>
+                </div>
+                <button class="btn btn-primary" onclick="showCreateModal()">
+                    <span style="font-size: 1.2rem; margin-right: 8px;">+</span> 新建文章
+                </button>
+            </header>
+
+            <div class="card" style="padding: 0; overflow: hidden;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">ID</th>
+                                <th>标题</th>
+                                <th>分类</th>
+                                <th>状态</th>
+                                <th>浏览量</th>
+                                <th>日期</th>
+                                <th style="text-align: right;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="article-list"></tbody>
+                    </table>
+                </div>
+                <div id="empty-state" style="display:none; padding: 60px; text-align: center; color: var(--text-muted);">
+                    <p>暂无文章内容</p>
+                    <button class="btn btn-sm btn-primary" style="margin-top: 16px;" onclick="showCreateModal()">立即创建第一篇</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="article-modal" class="modal">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                <h3 id="modal-title" style="font-size: 1.5rem; font-weight: 700;">新建文章</h3>
+                <button onclick="closeModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+            </div>
+            <form id="article-form" onsubmit="saveArticle(event)">
+                <input type="hidden" id="article-id">
+                <div class="form-group">
+                    <label>标题</label>
+                    <input type="text" id="title" required placeholder="输入文章标题...">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>别名 (URL Slug)</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="slug" required placeholder="article-url-slug">
+                            <button type="button" class="btn btn-sm" onclick="generateSlug()" style="white-space: nowrap; background: #e2e8f0; color: #475569;">拼音生成</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>分类</label>
+                        <select id="category_id">
+                            <option value="">载入中...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>标签</label>
+                    <div id="tags-container" style="display: flex; gap: 12px; flex-wrap: wrap; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+                </div>
+                <div class="form-group">
+                    <label>摘要</label>
+                    <textarea id="summary" style="min-height: 80px;" placeholder="文章简短描述..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; justify-content: space-between; align-items: center;">
+                        正文内容
+                        <button type="button" class="btn btn-sm" id="ai-btn" onclick="generateAIContent()" style="background: #eef2ff; color: #6366f1; border: 1px solid #e0e7ff;">
+                            ✨ AI 辅助生成摘要/标签
+                        </button>
+                    </label>
+                    <textarea id="content"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>发布状态</label>
+                    <select id="status">
+                        <option value="0">草稿 (Draft)</option>
+                        <option value="1">正式发布 (Published)</option>
+                    </select>
+                </div>
+                <div class="form-actions" style="justify-content: flex-end; border-top: 1px solid #f1f5f9; padding-top: 24px; margin-top: 32px;">
+                    <button type="button" class="btn" style="background: #f1f5f9; color: #475569;" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary" style="min-width: 120px;">保存文章</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/admin/login';
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+        };
+
+        async function loadArticles() {
+            try {
+                const res = await fetch('/api/admin/articles', { headers });
+                if (res.status === 401) return window.location.href = '/admin/login';
+                const data = await res.json();
+                const list = document.getElementById('article-list');
+                const empty = document.getElementById('empty-state');
+                
+                if (!data.items || data.items.length === 0) {
+                    list.innerHTML = '';
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+                list.innerHTML = data.items.map(a => `
+                    <tr>
+                        <td style="color: var(--text-muted); font-family: monospace;">#${a.id}</td>
+                        <td style="font-weight: 600;">${a.title}</td>
+                        <td><span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">${a.category_name || '未分类'}</span></td>
+                        <td><span class="status-badge ${a.status === 1 ? 'status-published' : 'status-draft'}">${a.status === 1 ? '已发布' : '草稿'}</span></td>
+                        <td style="color: var(--text-muted);">${a.view_count}</td>
+                        <td style="color: var(--text-muted); font-size: 0.85rem;">${new Date(a.created_at).toLocaleDateString()}</td>
+                        <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                            <button class="btn btn-sm" style="background: #eff6ff; color: #3b82f6;" onclick="editArticle(${a.id})">编辑</button>
+                            <button class="btn btn-sm" style="background: #fef2f2; color: #ef4444;" onclick="deleteArticle(${a.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadCategories() {
+            try {
+                const res = await fetch('/api/admin/categories', { headers });
+                const data = await res.json();
+                const select = document.getElementById('category_id');
+                select.innerHTML = '<option value="">无分类</option>' + 
+                    (data || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            } catch (e) {}
+        }
+
+        async function loadTags() {
+            try {
+                const res = await fetch('/api/admin/tags', { headers });
+                const data = await res.json();
+                const container = document.getElementById('tags-container');
+                container.innerHTML = (data || []).map(t => 
+                    `<label style="font-weight: 500; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; background: #fff; padding: 4px 10px; border-radius: 6px; border: 1px solid #e2e8f0;"><input type="checkbox" name="tags" value="${t.id}"> ${t.name}</label>`
+                ).join('');
+            } catch (e) {}
+        }
+
+        let easyMDE = null;
+
+        async function generateAIContent() {
+            if (!easyMDE) return;
+            const content = easyMDE.value();
+            if (!content || content.length < 50) {
+                alert('请先输入至少 50 字的文章正文，以便 AI 分析生成摘要。');
+                return;
+            }
+
+            const btn = document.getElementById('ai-btn');
+            const originalText = btn.innerText;
+            btn.innerText = '✨ AI 正在努力生成中...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/admin/articles/ai-suggest', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ content })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || 'AI 生成失败');
+                }
+
+                const result = await res.json();
+                
+                if (result.summary) {
+                    document.getElementById('summary').value = result.summary;
+                }
+
+                if (result.tags && result.tags.length > 0) {
+                    const checkboxes = document.querySelectorAll('#tags-container input[type="checkbox"]');
+                    const suggestedTags = result.tags.map(t => t.toLowerCase());
+                    
+                    checkboxes.forEach(cb => {
+                        const tagName = cb.parentElement.textContent.trim().toLowerCase();
+                        if (suggestedTags.some(st => tagName.includes(st) || st.includes(tagName))) {
+                            cb.checked = true;
+                        }
+                    });
+                    
+                    alert('AI 生成成功！已填充摘要并匹配了相关标签。');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('AI 生成失败: ' + err.message);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function showCreateModal() {
+            document.getElementById('modal-title').textContent = '新建文章';
+            document.getElementById('article-id').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('slug').value = '';
+            document.getElementById('category_id').value = '';
+            document.getElementById('summary').value = '';
+            document.getElementById('status').value = '0';
+            document.querySelectorAll('input[name="tags"]').forEach(cb => cb.checked = false);
+            
+            if (!easyMDE) {
+                easyMDE = new EasyMDE({ element: document.getElementById('content') });
+            } else {
+                easyMDE.value('');
+            }
+            
+            document.getElementById('article-modal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('article-modal').classList.remove('show');
+        }
+
+        async function editArticle(id) {
+            try {
+                const res = await fetch(`/api/admin/articles/${id}`, { headers });
+                const a = await res.json();
+                
+                document.getElementById('modal-title').textContent = '编辑文章';
+                document.getElementById('article-id').value = a.id;
+                document.getElementById('title').value = a.title;
+                document.getElementById('slug').value = a.slug;
+                document.getElementById('category_id').value = a.category_id || '';
+                document.getElementById('summary').value = a.summary || '';
+                document.getElementById('status').value = a.status;
+                
+                const checkedTags = (a.tags || []).map(t => t.id);
+                document.querySelectorAll('input[name="tags"]').forEach(cb => {
+                    cb.checked = checkedTags.includes(parseInt(cb.value));
+                });
+
+                if (!easyMDE) {
+                    easyMDE = new EasyMDE({ element: document.getElementById('content') });
+                }
+                easyMDE.value(a.content || '');
+                
+                document.getElementById('article-modal').classList.add('show');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function saveArticle(e) {
+            e.preventDefault();
+            const id = document.getElementById('article-id').value;
+            const tags = Array.from(document.querySelectorAll('input[name="tags"]:checked')).map(cb => parseInt(cb.value));
+            
+            const catVal = parseInt(document.getElementById('category_id').value);
+            const data = {
+                title: document.getElementById('title').value,
+                slug: document.getElementById('slug').value,
+                category_id: catVal > 0 ? catVal : null,
+                summary: document.getElementById('summary').value,
+                content: easyMDE.value(),
+                status: parseInt(document.getElementById('status').value),
+                tag_ids: tags
+            };
+
+            try {
+                const url = id ? `/api/admin/articles/${id}` : '/api/admin/articles';
+                const method = id ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
+                    headers,
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    closeModal();
+                    loadArticles();
+                } else {
+                    const err = await res.json();
+                    alert(err.error || '保存失败');
+                }
+            } catch (e) {
+                alert('网络错误');
+            }
+        }
+
+        async function deleteArticle(id) {
+            if (!confirm('确定删除此文章吗？')) return;
+            try {
+                const res = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE', headers });
+                if (res.ok) loadArticles();
+            } catch (e) {}
+        }
+
+        async function generateSlug() {
+            const title = document.getElementById('title').value;
+            if (!title) return alert('请先输入标题');
+            
+            try {
+                const res = await fetch('/api/admin/articles/generate-slug', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ title })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('slug').value = data.slug;
+                } else {
+                    alert('生成别名失败');
+                }
+            } catch (e) {
+                alert('网络错误');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/admin/login';
+        }
+
+        loadArticles();
+        loadCategories();
+        loadTags();
+    </script>
+</body>
+</html>

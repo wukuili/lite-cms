@@ -1,0 +1,29 @@
+{{ define "content" }}
+<div class="page-header">
+    <h1>全部文章</h1>
+    <p>探索我们的所有内容与故事</p>
+</div>
+
+<div class="article-list">
+    {{ range .articles }}
+    <article class="article-card">
+        <h2><a href="/posts/{{ .Slug }}">{{ .Title }}</a></h2>
+        <div class="article-meta">
+            {{ if .PublishedAt }}<span class="date">{{ .PublishedAt.Format "2006-01-02" }}</span>{{ end }}
+            {{ if .CategoryName }}<span class="dot">·</span> <a href="/category/{{ .CategorySlug }}">{{ .CategoryName }}</a>{{ end }}
+        </div>
+        <p class="article-summary">{{ .Summary }}</p>
+    </article>
+    {{ else }}
+    <div class="empty-state">
+        <p style="font-size: 1.2rem; color: #fff;">暂无文章</p>
+    </div>
+    {{ end }}
+</div>
+
+{{ if .has_more }}
+<div class="pagination">
+    <a href="/posts?cursor={{ .next }}">浏览更多文章</a>
+</div>
+{{ end }}
+{{ end }}

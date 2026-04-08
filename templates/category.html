@@ -1,0 +1,28 @@
+{{ define "content" }}
+<div class="page-header">
+    <p>分类</p>
+    <h1>{{ .category.Name }}</h1>
+</div>
+
+<div class="article-list">
+    {{ range .articles }}
+    <article class="article-card">
+        <h2><a href="/posts/{{ .Slug }}">{{ .Title }}</a></h2>
+        <div class="article-meta">
+            {{ if .PublishedAt }}<span class="date">{{ .PublishedAt.Format "2006-01-02" }}</span>{{ end }}
+        </div>
+        <p class="article-summary">{{ .Summary }}</p>
+    </article>
+    {{ else }}
+    <div class="empty-state">
+        <p style="font-size: 1.2rem; color: #fff;">该分类下暂无文章</p>
+    </div>
+    {{ end }}
+</div>
+
+{{ if .has_more }}
+<div class="pagination">
+    <a href="/category/{{ .category.Slug }}?cursor={{ .next }}">浏览更多文章</a>
+</div>
+{{ end }}
+{{ end }}

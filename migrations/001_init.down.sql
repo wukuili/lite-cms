@@ -1,0 +1,7 @@
+-- LiteCMS 回滚迁移
+DROP TABLE IF EXISTS article_tags;
+DROP TABLE IF EXISTS media;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS articles;
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS categories;

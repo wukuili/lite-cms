@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分类管理 - LiteCMS Admin</title>
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>LiteCMS Admin</h2>
+            </div>
+            <nav>
+                <a href="/admin/">仪表盘</a>
+                <a href="/admin/articles">文章管理</a>
+                <a href="/admin/categories" class="active">分类管理</a>
+                <a href="/admin/tags">标签管理</a>
+                <a href="/admin/media">媒体库</a>
+                <a href="/admin/menus">菜单管理</a>
+                <a href="/admin/users">用户管理</a>
+                <a href="/admin/settings">系统设置</a>
+                <a href="#" onclick="logout()" style="margin-top: auto;">退出登录</a>
+            </nav>
+        </aside>
+        
+        <main class="main">
+            <header class="header">
+                <div>
+                    <h2>分类管理</h2>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">组织您的内容架构</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button id="batch-delete-btn" class="btn" style="color: #ef4444; display: none;" onclick="batchDelete()">批量删除</button>
+                    <button class="btn btn-primary" onclick="showCreateModal()">+ 新建分类</button>
+                </div>
+            </header>
+
+            <div class="card" style="padding: 0;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="select-all" onclick="toggleAll(this.checked)"></th>
+                                <th style="width: 80px;">ID</th>
+                                <th>名称</th>
+                                <th>别名 (Slug)</th>
+                                <th>父级分类</th>
+                                <th style="text-align: right;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="category-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <h3 id="modal-title" style="margin-bottom: 24px;">新建分类</h3>
+            <form id="category-form" onsubmit="saveCategory(event)">
+                <input type="hidden" id="category-id">
+                <div class="form-group">
+                    <label>分类名称</label>
+                    <input type="text" id="name" required placeholder="例如：技术教程">
+                </div>
+                <div class="form-group">
+                    <label>别名 (Slug)</label>
+                    <input type="text" id="slug" required placeholder="tech-tutorial">
+                </div>
+                <div class="form-group">
+                    <label>父级分类</label>
+                    <select id="parent_id">
+                        <option value="0">无 (顶级分类)</option>
+                    </select>
+                </div>
+                <div class="form-actions" style="justify-content: flex-end;">
+                    <button type="button" class="btn" style="background: #f1f5f9;" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存分类</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/admin/login';
+        const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+
+        let selectedIds = new Set();
+        let currentItems = [];
+
+        async function loadCategories() {
+            try {
+                const res = await fetch('/api/admin/categories', { headers });
+                const data = await res.json();
+                currentItems = data || [];
+                selectedIds.clear();
+                document.getElementById('select-all').checked = false;
+                updateBatchButton();
+
+                const list = document.getElementById('category-list');
+                const parentSelect = document.getElementById('parent_id');
+                
+                const categoryMap = {};
+                currentItems.forEach(c => categoryMap[c.id] = c.name);
+
+                list.innerHTML = currentItems.map(c => `
+                    <tr>
+                        <td><input type="checkbox" class="cat-checkbox" value="${c.id}" onclick="toggleSelect(${c.id}, this.checked)"></td>
+                        <td style="color: var(--text-muted);">#${c.id}</td>
+                        <td style="font-weight: 600;">${c.name}</td>
+                        <td style="font-family: monospace; color: var(--text-muted);">${c.slug}</td>
+                        <td>${c.parent_id ? (categoryMap[c.parent_id] || '-') : '-'}</td>
+                        <td style="text-align: right;">
+                            <button class="btn btn-sm" style="color: var(--primary);" onclick="editCategory(${c.id})">编辑</button>
+                            <button class="btn btn-sm" style="color: #ef4444;" onclick="deleteCategory(${c.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+                parentSelect.innerHTML = '<option value="0">无 (顶级分类)</option>' + 
+                    currentItems.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            } catch (e) {}
+        }
+
+        function toggleSelect(id, checked) {
+            if (checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            updateBatchButton();
+        }
+
+        function toggleAll(checked) {
+            const checkboxes = document.querySelectorAll('.cat-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                const id = parseInt(cb.value);
+                if (checked) selectedIds.add(id);
+                else selectedIds.delete(id);
+            });
+            updateBatchButton();
+        }
+
+        function updateBatchButton() {
+            const btn = document.getElementById('batch-delete-btn');
+            btn.style.display = selectedIds.size > 0 ? 'block' : 'none';
+            btn.textContent = `批量删除 (${selectedIds.size})`;
+        }
+
+        async function batchDelete() {
+            if (!confirm(`确定要删除选中的 ${selectedIds.size} 个分类吗？关联的文章将变为未分类。`)) return;
+            try {
+                const res = await fetch('/api/admin/categories/batch-delete', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ ids: Array.from(selectedIds) })
+                });
+                if (res.ok) {
+                    selectedIds.clear();
+                    loadCategories();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || '删除失败');
+                }
+            } catch (e) {
+                alert('网络错误');
+            }
+        }
+
+        function showCreateModal() {
+            document.getElementById('modal-title').textContent = '新建分类';
+            document.getElementById('category-id').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('slug').value = '';
+            document.getElementById('parent_id').value = '0';
+            document.getElementById('category-modal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('category-modal').classList.remove('show');
+        }
+
+        async function editCategory(id) {
+            const res = await fetch('/api/admin/categories', { headers });
+            const categories = await res.json();
+            const c = categories.find(x => x.id === id);
+            if (!c) return;
+            
+            document.getElementById('modal-title').textContent = '编辑分类';
+            document.getElementById('category-id').value = c.id;
+            document.getElementById('name').value = c.name;
+            document.getElementById('slug').value = c.slug;
+            document.getElementById('parent_id').value = c.parent_id || '0';
+            document.getElementById('category-modal').classList.add('show');
+        }
+
+        async function saveCategory(e) {
+            e.preventDefault();
+            const id = document.getElementById('category-id').value;
+            const data = {
+                name: document.getElementById('name').value,
+                slug: document.getElementById('slug').value,
+                parent_id: parseInt(document.getElementById('parent_id').value) || null
+            };
+
+            const url = id ? `/api/admin/categories/${id}` : '/api/admin/categories';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, { method, headers, body: JSON.stringify(data) });
+            if (res.ok) { closeModal(); loadCategories(); }
+        }
+
+        async function deleteCategory(id) {
+            if (!confirm('确定删除吗？')) return;
+            await fetch(`/api/admin/categories/${id}`, { method: 'DELETE', headers });
+            loadCategories();
+        }
+
+        function logout() { localStorage.removeItem('token'); window.location.href = '/admin/login'; }
+        loadCategories();
+    </script>
+</body>
+</html>

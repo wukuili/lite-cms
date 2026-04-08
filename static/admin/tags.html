@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>标签管理 - LiteCMS Admin</title>
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>LiteCMS Admin</h2>
+            </div>
+            <nav>
+                <a href="/admin/">仪表盘</a>
+                <a href="/admin/articles">文章管理</a>
+                <a href="/admin/categories">分类管理</a>
+                <a href="/admin/tags" class="active">标签管理</a>
+                <a href="/admin/media">媒体库</a>
+                <a href="/admin/menus">菜单管理</a>
+                <a href="/admin/users">用户管理</a>
+                <a href="/admin/settings">系统设置</a>
+                <a href="#" onclick="logout()" style="margin-top: auto;">退出登录</a>
+            </nav>
+        </aside>
+        
+        <main class="main">
+            <header class="header">
+                <div>
+                    <h2>标签管理</h2>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">管理文章关键词和聚类</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button id="batch-delete-btn" class="btn" style="color: #ef4444; display: none;" onclick="batchDelete()">批量删除</button>
+                    <button class="btn btn-primary" onclick="showCreateModal()">+ 新建标签</button>
+                </div>
+            </header>
+
+            <div class="card" style="padding: 0;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="select-all" onclick="toggleAll(this.checked)"></th>
+                                <th style="width: 80px;">ID</th>
+                                <th>标签名称</th>
+                                <th>别名 (Slug)</th>
+                                <th>使用计数</th>
+                                <th style="text-align: right;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tag-list"></tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">
+                        共 <span id="total-count">0</span> 个标签
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-sm" id="prev-btn" onclick="changePage(-1)" disabled>上一页</button>
+                        <span style="display: flex; align-items: center; padding: 0 8px; font-weight: 600;" id="page-display">第 1 页</span>
+                        <button class="btn btn-sm" id="next-btn" onclick="changePage(1)" disabled>下一页</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="tag-modal" class="modal">
+        <div class="modal-content" style="width: 450px;">
+            <h3 id="modal-title" style="margin-bottom: 24px;">新建标签</h3>
+            <form id="tag-form" onsubmit="saveTag(event)">
+                <input type="hidden" id="tag-id">
+                <div class="form-group">
+                    <label>标签名称</label>
+                    <input type="text" id="name" required placeholder="例如：云原生">
+                </div>
+                <div class="form-group">
+                    <label>别名 (Slug)</label>
+                    <input type="text" id="slug" required placeholder="cloud-native">
+                </div>
+                <div class="form-actions" style="justify-content: flex-end;">
+                    <button type="button" class="btn" style="background: #f1f5f9;" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存标签</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/admin/login';
+        const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+
+        let currentPage = 1;
+        const pageSize = 10;
+        let totalTags = 0;
+        let currentItems = [];
+        let selectedIds = new Set();
+
+        async function loadTags() {
+            try {
+                const res = await fetch(`/api/admin/tags?page=${currentPage}&pageSize=${pageSize}`, { headers });
+                const data = await res.json();
+                
+                const tags = data.items || [];
+                totalTags = data.total || 0;
+                currentItems = tags;
+                selectedIds.clear();
+                document.getElementById('select-all').checked = false;
+                updateBatchButton();
+
+                const list = document.getElementById('tag-list');
+                list.innerHTML = tags.map(t => `
+                    <tr>
+                        <td><input type="checkbox" class="tag-checkbox" value="${t.id}" onclick="toggleSelect(${t.id}, this.checked)"></td>
+                        <td style="color: var(--text-muted); font-family: monospace;">#${t.id}</td>
+                        <td style="font-weight: 600;">${t.name}</td>
+                        <td style="color: var(--text-muted); font-family: monospace;">${t.slug}</td>
+                        <td>${t.article_count || 0} 篇文章</td>
+                        <td style="text-align: right;">
+                            <button class="btn btn-sm" style="color: var(--primary);" onclick="editTag(${t.id})">编辑</button>
+                            <button class="btn btn-sm" style="color: #ef4444;" onclick="deleteTag(${t.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Update pagination UI
+                document.getElementById('total-count').textContent = totalTags;
+                document.getElementById('page-display').textContent = `第 ${currentPage} 页`;
+                document.getElementById('prev-btn').disabled = currentPage <= 1;
+                document.getElementById('next-btn').disabled = currentPage * pageSize >= totalTags;
+
+            } catch (e) {
+                console.error('Failed to load tags:', e);
+            }
+        }
+
+        function toggleSelect(id, checked) {
+            if (checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            updateBatchButton();
+        }
+
+        function toggleAll(checked) {
+            const checkboxes = document.querySelectorAll('.tag-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                const id = parseInt(cb.value);
+                if (checked) selectedIds.add(id);
+                else selectedIds.delete(id);
+            });
+            updateBatchButton();
+        }
+
+        function updateBatchButton() {
+            const btn = document.getElementById('batch-delete-btn');
+            btn.style.display = selectedIds.size > 0 ? 'block' : 'none';
+            btn.textContent = `批量删除 (${selectedIds.size})`;
+        }
+
+        async function batchDelete() {
+            if (!confirm(`确定要删除选中的 ${selectedIds.size} 个标签吗？`)) return;
+            try {
+                const res = await fetch('/api/admin/tags/batch-delete', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ ids: Array.from(selectedIds) })
+                });
+                if (res.ok) {
+                    selectedIds.clear();
+                    loadTags();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || '删除失败');
+                }
+            } catch (e) {
+                alert('网络错误');
+            }
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            loadTags();
+        }
+
+        function showCreateModal() {
+            document.getElementById('modal-title').textContent = '新建标签';
+            document.getElementById('tag-id').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('slug').value = '';
+            document.getElementById('tag-modal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('tag-modal').classList.remove('show');
+        }
+
+        function editTag(id) {
+            const t = currentItems.find(x => x.id === id);
+            if (!t) return;
+            
+            document.getElementById('modal-title').textContent = '编辑标签';
+            document.getElementById('tag-id').value = t.id;
+            document.getElementById('name').value = t.name;
+            document.getElementById('slug').value = t.slug;
+            document.getElementById('tag-modal').classList.add('show');
+        }
+
+        async function saveTag(e) {
+            e.preventDefault();
+            const id = document.getElementById('tag-id').value;
+            const data = {
+                name: document.getElementById('name').value,
+                slug: document.getElementById('slug').value
+            };
+
+            const url = id ? `/api/admin/tags/${id}` : '/api/admin/tags';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, { method, headers, body: JSON.stringify(data) });
+            if (res.ok) { closeModal(); loadTags(); }
+        }
+
+        async function deleteTag(id) {
+            if (!confirm('确定删除吗？')) return;
+            await fetch(`/api/admin/tags/${id}`, { method: 'DELETE', headers });
+            loadTags();
+        }
+
+        function logout() { localStorage.removeItem('token'); window.location.href = '/admin/login'; }
+        loadTags();
+    </script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>菜单管理 - LiteCMS Admin</title>
+    <link rel="stylesheet" href="/static/admin/css/admin.css">
+    <style>
+        .menu-item-row { display: flex; align-items: center; gap: 12px; }
+        .menu-indent { color: #cbd5e1; font-family: monospace; }
+        .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; background: #f1f5f9; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>LiteCMS Admin</h2>
+            </div>
+            <nav>
+                <a href="/admin/">仪表盘</a>
+                <a href="/admin/articles">文章管理</a>
+                <a href="/admin/categories">分类管理</a>
+                <a href="/admin/tags">标签管理</a>
+                <a href="/admin/media">媒体库</a>
+                <a href="/admin/menus" class="active">菜单管理</a>
+                <a href="/admin/users">用户管理</a>
+                <a href="/admin/settings">系统设置</a>
+                <a href="#" onclick="logout()" style="margin-top: auto;">退出登录</a>
+            </nav>
+        </aside>
+        
+        <main class="main">
+            <header class="header">
+                <div>
+                    <h2>菜单管理</h2>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">自定义站台导航菜单与层级</p>
+                </div>
+                <button class="btn btn-primary" onclick="showCreateModal()">+ 新建菜单项</button>
+            </header>
+
+            <div class="card" style="padding: 0;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">排序</th>
+                                <th>菜单名称</th>
+                                <th>链接地址</th>
+                                <th>显示位置</th>
+                                <th>打开方式</th>
+                                <th style="text-align: right;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="menu-list"></tbody>
+                    </table>
+                </div>
+                <div id="empty-state" style="display:none; text-align: center; padding: 60px; color: var(--text-muted);">暂无菜单配置</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    <div id="menu-modal" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <h3 id="modal-title" style="margin-bottom: 24px; font-weight: 700;">添加菜单项</h3>
+            <form id="menu-form" onsubmit="saveMenu(event)">
+                <input type="hidden" id="menu-id">
+                <div class="form-group">
+                    <label>菜单名称</label>
+                    <input type="text" id="name" required placeholder="例如：首页、联系我们">
+                </div>
+                <div class="form-group">
+                    <label>链接地址</label>
+                    <input type="text" id="link" required placeholder="/category/tech 或 http://...">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>排序 (从小到大)</label>
+                        <input type="number" id="sort" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>打开方式</label>
+                        <select id="target">
+                            <option value="_self">当前窗口</option>
+                            <option value="_blank">新窗口</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>显示位置</label>
+                    <select id="position">
+                        <option value="header">顶部导航 (Header)</option>
+                        <option value="footer">底部导航 (Footer)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>父级菜单 (支持二级菜单)</label>
+                    <select id="parent_id">
+                        <option value="0">无 (顶级菜单)</option>
+                    </select>
+                </div>
+                <div class="form-actions" style="justify-content: flex-end; margin-top: 32px; border-top: 1px solid #f1f5f9; padding-top: 24px;">
+                    <button type="button" class="btn" style="background: #f1f5f9; color: #475569;" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary" style="min-width: 100px;">保存菜单</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/admin/login';
+        const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
+
+        async function loadMenus() {
+            try {
+                const res = await fetch('/api/admin/menus', { headers });
+                const menus = await res.json();
+                const list = document.getElementById('menu-list');
+                const empty = document.getElementById('empty-state');
+                const parentSelect = document.getElementById('parent_id');
+
+                if (!menus || menus.length === 0) {
+                    list.innerHTML = '';
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+
+                // 平铺显示菜单，层级用缩进表示
+                const sortedMenus = [];
+                const topMenus = menus.filter(m => !m.parent_id);
+                topMenus.forEach(m => {
+                    sortedMenus.push({ ...m, level: 0 });
+                    const children = menus.filter(c => c.parent_id === m.id);
+                    children.forEach(c => sortedMenus.push({ ...c, level: 1 }));
+                });
+
+                list.innerHTML = sortedMenus.map(m => `
+                    <tr>
+                        <td style="color: var(--text-muted); font-family: monospace;">${m.sort_order}</td>
+                        <td>
+                            <div class="menu-item-row">
+                                ${m.level > 0 ? '<span class="menu-indent">└──</span>' : ''}
+                                <span style="font-weight: 600;">${m.name}</span>
+                            </div>
+                        </td>
+                        <td style="color: var(--text-muted); font-family: monospace; font-size: 0.875rem;">${m.url}</td>
+                        <td>
+                            <span class="badge" style="background: ${m.position === 'footer' ? '#fff7ed' : '#eff6ff'}; color: ${m.position === 'footer' ? '#ea580c' : '#3b82f6'};">
+                                ${m.position === 'footer' ? '底部' : '顶部'}
+                            </span>
+                        </td>
+                        <td>
+                            <span style="color: var(--text-muted); font-size: 0.8rem;">${m.target === '_blank' ? '新窗口' : '当前窗口'}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <button class="btn btn-sm" style="color: var(--primary);" onclick="editMenu(${m.id})">编辑</button>
+                            <button class="btn btn-sm" style="color: #ef4444;" onclick="deleteMenu(${m.id})">删除</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                parentSelect.innerHTML = '<option value="0">无 (顶级菜单)</option>' + 
+                    topMenus.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+            } catch (e) {}
+        }
+
+        function showCreateModal() {
+            document.getElementById('modal-title').textContent = '添加菜单项';
+            document.getElementById('menu-id').value = '';
+            document.getElementById('name').value = '';
+            document.getElementById('link').value = ''; // Input ID is still 'link', that's fine
+            document.getElementById('sort').value = '0';
+            document.getElementById('target').value = '_self';
+            document.getElementById('position').value = 'header';
+            document.getElementById('parent_id').value = '0';
+            document.getElementById('menu-modal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('menu-modal').classList.remove('show');
+        }
+
+        async function editMenu(id) {
+            const res = await fetch('/api/admin/menus', { headers });
+            const menus = await res.json();
+            const m = menus.find(x => x.id === id);
+            if (!m) return;
+            
+            document.getElementById('modal-title').textContent = '编辑菜单项';
+            document.getElementById('menu-id').value = m.id;
+            document.getElementById('name').value = m.name;
+            document.getElementById('link').value = m.url; // Use 'url' from API
+            document.getElementById('sort').value = m.sort_order;
+            document.getElementById('target').value = m.target || '_self';
+            document.getElementById('position').value = m.position || 'header';
+            document.getElementById('parent_id').value = m.parent_id || '0';
+            document.getElementById('menu-modal').classList.add('show');
+        }
+
+        async function saveMenu(e) {
+            e.preventDefault();
+            const id = document.getElementById('menu-id').value;
+            const data = {
+                name: document.getElementById('name').value,
+                url: document.getElementById('link').value,
+                sort_order: parseInt(document.getElementById('sort').value),
+                target: document.getElementById('target').value,
+                position: document.getElementById('position').value,
+                parent_id: parseInt(document.getElementById('parent_id').value) || null
+            };
+
+            const url = id ? `/api/admin/menus/${id}` : '/api/admin/menus';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, { method, headers, body: JSON.stringify(data) });
+            if (res.ok) { closeModal(); loadMenus(); }
+        }
+
+        async function deleteMenu(id) {
+            if (!confirm('确定删除吗？')) return;
+            await fetch(`/api/admin/menus/${id}`, { method: 'DELETE', headers });
+            loadMenus();
+        }
+
+        function logout() { localStorage.removeItem('token'); window.location.href = '/admin/login'; }
+        loadMenus();
+    </script>
+</body>
+</html>
