@@ -27,6 +27,8 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+md/
+.qoder/
 
 # Uploads (generated at runtime)
 static/uploads/*
